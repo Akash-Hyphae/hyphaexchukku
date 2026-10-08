@@ -1,0 +1,6 @@
+{
+  "name": "CHUKKU × HYPHAE",
+  "description": "A private, dreamy, and romantic universe created by Hyphae for Chukku. An intimate public story and a secure private admin vault.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
