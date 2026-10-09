@@ -12,12 +12,12 @@ import vaultRoutes from './server/routes/vaultRoutes.ts';
 dotenv.config();
 
 const app = express();
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = process.env.PORT || 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 // Core Middlewares
 app.use(cors({
-  origin: true,
+  origin: (process.env.CLIENT_URL ? [process.env.CLIENT_URL, true] : true) as any,
   credentials: true
 }));
 app.use(express.json({ limit: '50mb' }));
@@ -76,7 +76,7 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
+  app.listen(Number(PORT), '0.0.0.0', () => {
     console.log(`✨ Chukku × Hyphae Romantic Server is running on port ${PORT}`);
     console.log(`🔒 Private Admin Vault protected at /admin/private`);
   });

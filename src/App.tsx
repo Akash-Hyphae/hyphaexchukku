@@ -25,7 +25,7 @@ import { FuturePage } from './pages/FuturePage.tsx';
 import { AdminLoginPage } from './pages/AdminLoginPage.tsx';
 import { AdminLayout } from './admin/AdminLayout.tsx';
 
-import { Heart, Lock } from 'lucide-react';
+import { Heart, Lock, Edit2 } from 'lucide-react';
 
 const defaultSettings: SiteSettings = {
   heroHeadline: 'Welcome to our little universe.',
@@ -161,6 +161,55 @@ function MainApp() {
     <div className="min-h-screen bg-[#FAF7F2] text-[#2C2420] relative flex flex-col justify-between font-sans selection:bg-[#E8C4B8] selection:text-[#3B1E19]">
       <FloatingParticles />
 
+      {/* Admin Floating Control Bar when Authenticated */}
+      {isAuthenticated && (
+        <div className="sticky top-0 z-50 bg-[#231215]/95 text-[#F8E7E9] backdrop-blur-md border-b border-[#4E242B] px-4 sm:px-8 py-2 shadow-md flex flex-wrap items-center justify-between gap-3 text-xs">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+            <span className="font-semibold text-rose-200">Admin Mode Active:</span>
+            <span className="text-[#D6C2BF] hidden md:inline">Viewing public website as Hyphae</span>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                const target = currentRoute === 'home' ? 'settings' : currentRoute;
+                sessionStorage.setItem('admin_target_tab', target);
+                navigateTo('admin');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-[#421A20] hover:bg-[#5C232B] text-[#FCA5A5] hover:text-white border border-[#6B2D37] transition-colors cursor-pointer text-[11px] font-medium"
+              title={`Edit ${currentRoute} page in Admin Panel`}
+            >
+              <Edit2 className="w-3 h-3 text-rose-300" />
+              <span>Edit {currentRoute === 'home' ? 'Home & Settings' : currentRoute.charAt(0).toUpperCase() + currentRoute.slice(1)}</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sessionStorage.setItem('admin_target_tab', 'private-vault');
+                navigateTo('admin');
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-gradient-to-r from-[#BE123C] to-[#E11D48] hover:from-[#9F1239] hover:to-[#BE123C] text-white transition-all cursor-pointer text-[11px] font-semibold shadow-xs"
+              title="Open Private Vault"
+            >
+              <Lock className="w-3 h-3" />
+              <span>Private Vault</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sessionStorage.setItem('admin_target_tab', 'dashboard');
+                navigateTo('admin');
+              }}
+              className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-white/10 hover:bg-white/20 text-white transition-colors cursor-pointer text-[11px]"
+              title="Open Admin Dashboard"
+            >
+              <span>Dashboard →</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Public Navbar (strictly no Admin/Vault links) */}
       <Navbar
         currentTab={currentRoute}
@@ -222,33 +271,33 @@ function MainApp() {
       </main>
 
       {/* Soft Romantic Footer with Tasteful Admin Login Access */}
-      <footer className="relative z-10 border-t border-[#EAE0D6] py-12 px-6 bg-[#FAF7F2]/80 backdrop-blur-xs">
+      <footer className="relative z-10 border-t border-[#EAE0D6] py-12 px-6 bg-[#FAF7F2]/90 backdrop-blur-xs">
         <div className="max-w-5xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs text-[#8F7266]">
           {/* Brand & Dedication */}
           <div className="flex items-center gap-2">
             <Heart className="w-3.5 h-3.5 text-[#A84B3D] fill-[#A84B3D]" />
             <span className="font-serif text-sm font-medium text-[#3D251E]">CHUKKU × HYPHAE</span>
-            <span aria-hidden="true">·</span>
+            <span className="text-[#D0C2B9]" aria-hidden="true">·</span>
             <span>Made with all my love</span>
           </div>
 
           {/* Romantic Handwritten Motto */}
           <div className="text-center">
-            <span className="font-handwriting text-lg text-[#7D5A4F]">
+            <span className="font-handwriting text-xl text-[#7D5A4F]">
               “I made a little world for you.”
             </span>
           </div>
 
-          {/* Tasteful, Elegant Admin Login Button */}
+          {/* Tasteful, Discreet Admin Portal Button */}
           <div className="flex items-center">
             <button
               onClick={() => navigateTo(isAuthenticated ? 'admin' : 'admin-login')}
-              className="group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#DFD0C3] bg-[#FAF5EE]/70 hover:bg-[#FFFDF9] hover:border-[#C4A999] text-[#70564D] hover:text-[#3D251E] text-[11px] font-sans tracking-widest uppercase transition-all duration-300 shadow-2xs hover:shadow-xs cursor-pointer focus-visible:outline-hidden"
-              title={isAuthenticated ? 'Open Admin Dashboard' : 'Open Admin Login'}
+              className="group inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-[#DFD3C8] bg-[#FAF5EE]/70 hover:bg-white hover:border-[#BFAF9F] text-[#7A6158] hover:text-[#3D251E] text-xs font-sans transition-all duration-300 shadow-2xs hover:shadow-xs cursor-pointer focus-visible:outline-hidden"
+              title={isAuthenticated ? 'Open Admin Dashboard & Private Vault' : 'Hyphae Admin Login'}
             >
               <Lock className="w-3 h-3 text-[#A88B82] group-hover:text-[#A84B3D] transition-colors" />
-              <span className="font-medium">
-                {isAuthenticated ? 'Admin Dashboard' : 'Admin Login'}
+              <span className="text-[11px] font-medium tracking-wide">
+                {isAuthenticated ? 'Admin Panel' : 'Admin Login'}
               </span>
               {isAuthenticated && (
                 <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />

@@ -24,9 +24,13 @@ import {
   Gift,
   ShieldAlert,
   Save,
-  Check
+  Check,
+  X,
+  MapPin,
+  Tag
 } from 'lucide-react';
 import { ImageWithFallback } from '../components/ImageWithFallback.tsx';
+import { PhotoUploaderModal } from './PhotoUploaderModal.tsx';
 
 export const PrivateVault: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'memories' | 'letters' | 'notes' | 'surprises' | 'journal'>('memories');
@@ -38,36 +42,51 @@ export const PrivateVault: React.FC = () => {
   const [journals, setJournals] = useState<PrivateJournalItem[]>([]);
   const [surprises, setSurprises] = useState<SurpriseIdeaItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState('');
 
-  // New Note modal state
+  // 1. Photo Modal state (Create & Edit)
+  const [showPhotoModal, setShowPhotoModal] = useState(false);
+  const [editingMemory, setEditingMemory] = useState<GalleryImage | null>(null);
+
+  // 2. Note modal state (Create & Edit)
   const [showNoteModal, setShowNoteModal] = useState(false);
+  const [editingNote, setEditingNote] = useState<PrivateNoteItem | null>(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteContent, setNoteContent] = useState('');
   const [noteCategory, setNoteCategory] = useState('Random thoughts');
   const [noteTags, setNoteTags] = useState('');
 
-  // New Letter modal state
+  // 3. Letter modal state (Create & Edit)
   const [showLetterModal, setShowLetterModal] = useState(false);
+  const [editingLetter, setEditingLetter] = useState<LoveLetterItem | null>(null);
   const [letterTitle, setLetterTitle] = useState('');
   const [letterContent, setLetterContent] = useState('');
   const [letterDate, setLetterDate] = useState(new Date().toISOString().split('T')[0]);
   const [letterMood, setLetterMood] = useState('Unfiltered Truth');
 
-  // New Journal modal state
+  // 4. Journal modal state (Create & Edit)
   const [showJournalModal, setShowJournalModal] = useState(false);
+  const [editingJournal, setEditingJournal] = useState<PrivateJournalItem | null>(null);
   const [journalTitle, setJournalTitle] = useState('');
   const [journalContent, setJournalContent] = useState('');
   const [journalMood, setJournalMood] = useState('Deep Emotion');
   const [journalDate, setJournalDate] = useState(new Date().toISOString().split('T')[0]);
 
-  // New Surprise modal state
+  // 5. Surprise modal state (Create & Edit)
   const [showSurpriseModal, setShowSurpriseModal] = useState(false);
+  const [editingSurprise, setEditingSurprise] = useState<SurpriseIdeaItem | null>(null);
   const [surpriseTitle, setSurpriseTitle] = useState('');
   const [surpriseDesc, setSurpriseDesc] = useState('');
   const [surpriseLocation, setSurpriseLocation] = useState('');
   const [surpriseBudget, setSurpriseBudget] = useState('');
   const [surpriseStatus, setSurpriseStatus] = useState<'Idea' | 'Planning' | 'Ready' | 'Completed'>('Planning');
   const [surpriseNotes, setSurpriseNotes] = useState('');
+  const [surpriseChecklistText, setSurpriseChecklistText] = useState('');
+
+  const triggerNotify = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(''), 3000);
+  };
 
   const loadAllVaultData = async () => {
     setLoading(true);
@@ -106,108 +125,310 @@ export const PrivateVault: React.FC = () => {
       });
       if (res.success) {
         setMemories(memories.map(m => m._id === img._id ? res.data : m));
+        triggerNotify(newIsPrivate ? 'Marked as PRIVATE' : 'Published to public gallery');
       }
     } catch (err) {
       console.error('Failed to toggle privacy:', err);
     }
   };
 
-  // Create Note
-  const handleCreateNote = async (e: React.FormEvent) => {
+  // Delete memory
+  const handleDeleteMemory = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this secret memory?')) return;
+    try {
+      const res = await adminApi.deleteGalleryImage(id);
+      if (res.success) {
+        setMemories(memories.filter(m => m._id !== id));
+        triggerNotify('Memory deleted.');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Open Create/Edit Note
+  const openCreateNote = () => {
+    setEditingNote(null);
+    setNoteTitle('');
+    setNoteContent('');
+    setNoteCategory('Random thoughts');
+    setNoteTags('');
+    setShowNoteModal(true);
+  };
+
+  const openEditNote = (note: PrivateNoteItem) => {
+    setEditingNote(note);
+    setNoteTitle(note.title);
+    setNoteContent(note.content);
+    setNoteCategory(note.category);
+    setNoteTags((note.tags || []).join(', '));
+    setShowNoteModal(true);
+  };
+
+  const handleSaveNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!noteTitle || !noteContent) return;
     try {
-      const res = await vaultApi.createNote({
-        title: noteTitle,
-        content: noteContent,
-        category: noteCategory,
-        tags: noteTags.split(',').map(t => t.trim()).filter(Boolean)
-      });
-      if (res.success) {
-        setNotes([res.data, ...notes]);
-        setShowNoteModal(false);
-        setNoteTitle('');
-        setNoteContent('');
-        setNoteTags('');
+      const parsedTags = noteTags.split(',').map(t => t.trim()).filter(Boolean);
+      if (editingNote) {
+        const res = await vaultApi.updateNote(editingNote._id, {
+          title: noteTitle,
+          content: noteContent,
+          category: noteCategory,
+          tags: parsedTags
+        });
+        if (res.success) {
+          setNotes(notes.map(n => n._id === editingNote._id ? res.data : n));
+          setShowNoteModal(false);
+          triggerNotify('Note updated successfully.');
+        }
+      } else {
+        const res = await vaultApi.createNote({
+          title: noteTitle,
+          content: noteContent,
+          category: noteCategory,
+          tags: parsedTags
+        });
+        if (res.success) {
+          setNotes([res.data, ...notes]);
+          setShowNoteModal(false);
+          triggerNotify('Note saved.');
+        }
       }
     } catch (err) {
-      console.error('Failed to create note:', err);
+      console.error('Failed to save note:', err);
     }
   };
 
-  // Create Letter
-  const handleCreateLetter = async (e: React.FormEvent) => {
+  const handleDeleteNote = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this note?')) return;
+    try {
+      await vaultApi.deleteNote(id);
+      setNotes(notes.filter(n => n._id !== id));
+      triggerNotify('Note deleted.');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Open Create/Edit Letter
+  const openCreateLetter = () => {
+    setEditingLetter(null);
+    setLetterTitle('');
+    setLetterContent('');
+    setLetterDate(new Date().toISOString().split('T')[0]);
+    setLetterMood('Unfiltered Truth');
+    setShowLetterModal(true);
+  };
+
+  const openEditLetter = (letter: LoveLetterItem) => {
+    setEditingLetter(letter);
+    setLetterTitle(letter.title);
+    setLetterContent(letter.content);
+    setLetterDate(letter.date);
+    setLetterMood(letter.mood || 'Unfiltered Truth');
+    setShowLetterModal(true);
+  };
+
+  const handleSaveLetter = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!letterTitle || !letterContent) return;
     try {
-      const res = await vaultApi.createLetter({
-        title: letterTitle,
-        content: letterContent,
-        date: letterDate,
-        mood: letterMood
-      });
-      if (res.success) {
-        setLetters([res.data, ...letters]);
-        setShowLetterModal(false);
-        setLetterTitle('');
-        setLetterContent('');
+      if (editingLetter) {
+        const res = await vaultApi.updateLetter(editingLetter._id, {
+          title: letterTitle,
+          content: letterContent,
+          date: letterDate,
+          mood: letterMood,
+          isPrivate: true,
+          isPublished: false
+        });
+        if (res.success) {
+          setLetters(letters.map(l => l._id === editingLetter._id ? res.data : l));
+          setShowLetterModal(false);
+          triggerNotify('Secret letter updated.');
+        }
+      } else {
+        const res = await vaultApi.createLetter({
+          title: letterTitle,
+          content: letterContent,
+          date: letterDate,
+          mood: letterMood
+        });
+        if (res.success) {
+          setLetters([res.data, ...letters]);
+          setShowLetterModal(false);
+          triggerNotify('Secret letter saved.');
+        }
       }
     } catch (err) {
-      console.error('Failed to create private letter:', err);
+      console.error('Failed to save private letter:', err);
     }
   };
 
-  // Create Journal
-  const handleCreateJournal = async (e: React.FormEvent) => {
+  const handleDeleteLetter = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this secret letter?')) return;
+    try {
+      await vaultApi.deleteLetter(id);
+      setLetters(letters.filter(l => l._id !== id));
+      triggerNotify('Secret letter deleted.');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Open Create/Edit Journal
+  const openCreateJournal = () => {
+    setEditingJournal(null);
+    setJournalTitle('');
+    setJournalContent('');
+    setJournalMood('Deep Emotion');
+    setJournalDate(new Date().toISOString().split('T')[0]);
+    setShowJournalModal(true);
+  };
+
+  const openEditJournal = (entry: PrivateJournalItem) => {
+    setEditingJournal(entry);
+    setJournalTitle(entry.title);
+    setJournalContent(entry.content);
+    setJournalMood(entry.mood || 'Deep Emotion');
+    setJournalDate(entry.date || new Date().toISOString().split('T')[0]);
+    setShowJournalModal(true);
+  };
+
+  const handleSaveJournal = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!journalTitle || !journalContent) return;
     try {
-      const res = await vaultApi.createJournal({
-        title: journalTitle,
-        content: journalContent,
-        date: journalDate,
-        mood: journalMood,
-        tags: ['private', 'vault']
-      });
-      if (res.success) {
-        setJournals([res.data, ...journals]);
-        setShowJournalModal(false);
-        setJournalTitle('');
-        setJournalContent('');
+      if (editingJournal) {
+        const res = await vaultApi.updateJournal(editingJournal._id, {
+          title: journalTitle,
+          content: journalContent,
+          date: journalDate,
+          mood: journalMood
+        });
+        if (res.success) {
+          setJournals(journals.map(j => j._id === editingJournal._id ? res.data : j));
+          setShowJournalModal(false);
+          triggerNotify('Journal entry updated.');
+        }
+      } else {
+        const res = await vaultApi.createJournal({
+          title: journalTitle,
+          content: journalContent,
+          date: journalDate,
+          mood: journalMood,
+          tags: ['private', 'vault']
+        });
+        if (res.success) {
+          setJournals([res.data, ...journals]);
+          setShowJournalModal(false);
+          triggerNotify('Journal entry saved.');
+        }
       }
     } catch (err) {
-      console.error('Failed to create journal entry:', err);
+      console.error('Failed to save journal entry:', err);
     }
   };
 
-  // Create Surprise
-  const handleCreateSurprise = async (e: React.FormEvent) => {
+  const handleDeleteJournal = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this journal entry?')) return;
+    try {
+      await vaultApi.deleteJournal(id);
+      setJournals(journals.filter(j => j._id !== id));
+      triggerNotify('Journal entry deleted.');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  // Open Create/Edit Surprise
+  const openCreateSurprise = () => {
+    setEditingSurprise(null);
+    setSurpriseTitle('');
+    setSurpriseDesc('');
+    setSurpriseLocation('');
+    setSurpriseBudget('');
+    setSurpriseStatus('Planning');
+    setSurpriseNotes('');
+    setSurpriseChecklistText('Scout location\nOrganize logistics');
+    setShowSurpriseModal(true);
+  };
+
+  const openEditSurprise = (surprise: SurpriseIdeaItem) => {
+    setEditingSurprise(surprise);
+    setSurpriseTitle(surprise.title);
+    setSurpriseDesc(surprise.description);
+    setSurpriseLocation(surprise.location || '');
+    setSurpriseBudget(surprise.budget || '');
+    setSurpriseStatus(surprise.status);
+    setSurpriseNotes(surprise.notes || '');
+    setSurpriseChecklistText((surprise.checklist || []).map(c => c.text).join('\n'));
+    setShowSurpriseModal(true);
+  };
+
+  const handleSaveSurprise = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!surpriseTitle || !surpriseDesc) return;
     try {
-      const res = await vaultApi.createSurprise({
-        title: surpriseTitle,
-        description: surpriseDesc,
-        location: surpriseLocation,
-        budget: surpriseBudget,
-        status: surpriseStatus,
-        notes: surpriseNotes,
-        checklist: [
-          { id: '1', text: 'Scout location', done: false },
-          { id: '2', text: 'Organize logistics', done: false }
-        ]
+      const checklistLines = surpriseChecklistText
+        .split('\n')
+        .map(l => l.trim())
+        .filter(Boolean);
+
+      const parsedChecklist = checklistLines.map((text, idx) => {
+        const existing = editingSurprise?.checklist?.[idx];
+        return {
+          id: existing?.id || `chk_${Date.now()}_${idx}`,
+          text,
+          done: existing?.done || false
+        };
       });
-      if (res.success) {
-        setSurprises([res.data, ...surprises]);
-        setShowSurpriseModal(false);
-        setSurpriseTitle('');
-        setSurpriseDesc('');
-        setSurpriseLocation('');
-        setSurpriseBudget('');
-        setSurpriseNotes('');
+
+      if (editingSurprise) {
+        const res = await vaultApi.updateSurprise(editingSurprise._id, {
+          title: surpriseTitle,
+          description: surpriseDesc,
+          location: surpriseLocation,
+          budget: surpriseBudget,
+          status: surpriseStatus,
+          notes: surpriseNotes,
+          checklist: parsedChecklist
+        });
+        if (res.success) {
+          setSurprises(surprises.map(s => s._id === editingSurprise._id ? res.data : s));
+          setShowSurpriseModal(false);
+          triggerNotify('Surprise plan updated.');
+        }
+      } else {
+        const res = await vaultApi.createSurprise({
+          title: surpriseTitle,
+          description: surpriseDesc,
+          location: surpriseLocation,
+          budget: surpriseBudget,
+          status: surpriseStatus,
+          notes: surpriseNotes,
+          checklist: parsedChecklist
+        });
+        if (res.success) {
+          setSurprises([res.data, ...surprises]);
+          setShowSurpriseModal(false);
+          triggerNotify('Surprise plan saved.');
+        }
       }
     } catch (err) {
-      console.error('Failed to create surprise idea:', err);
+      console.error('Failed to save surprise idea:', err);
+    }
+  };
+
+  const handleDeleteSurprise = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this surprise idea?')) return;
+    try {
+      await vaultApi.deleteSurprise(id);
+      setSurprises(surprises.filter(s => s._id !== id));
+      triggerNotify('Surprise idea deleted.');
+    } catch (err) {
+      console.error(err);
     }
   };
 
@@ -227,6 +448,15 @@ export const PrivateVault: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0D0808] text-[#E8DFD8] p-6 sm:p-10 select-none">
+      
+      {/* Toast Notification */}
+      {notification && (
+        <div className="fixed top-6 right-6 z-50 bg-[#166534] text-white px-4 py-2.5 rounded-lg shadow-xl text-xs flex items-center gap-2 animate-in fade-in duration-200">
+          <Check className="w-4 h-4" />
+          <span>{notification}</span>
+        </div>
+      )}
+
       {/* Glow Header */}
       <div className="relative pb-8 mb-8 border-b border-[#2C1819] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -276,18 +506,38 @@ export const PrivateVault: React.FC = () => {
       {/* --- TAB 1: PRIVATE MEMORIES --- */}
       {activeTab === 'memories' && (
         <div>
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h2 className="font-serif text-2xl text-white">Private Memories</h2>
               <p className="text-xs text-[#8A6D68]">
                 Photographs that are restricted to this vault. Changing privacy immediately updates public visibility.
               </p>
             </div>
+            <button
+              onClick={() => {
+                setEditingMemory(null);
+                setShowPhotoModal(true);
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold rounded-lg tracking-wider uppercase cursor-pointer shrink-0"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add Secret Photo</span>
+            </button>
           </div>
 
           {memories.length === 0 ? (
             <div className="py-20 text-center text-[#8A6D68] bg-[#140C0E] rounded-xl border border-[#241315]">
               <p className="font-serif text-xl">Nothing hidden here yet.</p>
+              <button
+                onClick={() => {
+                  setEditingMemory(null);
+                  setShowPhotoModal(true);
+                }}
+                className="mt-4 px-4 py-2 rounded-lg bg-[#E11D48] text-white text-xs font-semibold inline-flex items-center gap-2"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Add Your First Secret Memory</span>
+              </button>
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -323,12 +573,34 @@ export const PrivateVault: React.FC = () => {
 
                   <div className="mt-4 pt-3 border-t border-[#261416] flex justify-between items-center text-xs">
                     <span className="text-[#8A6D68]">{img.date || 'Undated'}</span>
-                    <button
-                      onClick={() => togglePhotoPrivacy(img)}
-                      className="px-3 py-1.5 rounded bg-[#2D1619] hover:bg-[#3D1D22] text-[#E8A598] transition-colors cursor-pointer text-xs"
-                    >
-                      Make Public
-                    </button>
+                    
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => togglePhotoPrivacy(img)}
+                        className="px-2.5 py-1 rounded bg-[#2D1619] hover:bg-[#3D1D22] text-[#E8A598] transition-colors cursor-pointer text-xs"
+                      >
+                        Make Public
+                      </button>
+
+                      <button
+                        onClick={() => {
+                          setEditingMemory(img);
+                          setShowPhotoModal(true);
+                        }}
+                        className="p-1.5 rounded hover:bg-[#2D1619] text-[#B2948E] hover:text-white"
+                        title="Edit Memory"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+
+                      <button
+                        onClick={() => handleDeleteMemory(img._id)}
+                        className="p-1.5 rounded hover:bg-rose-950/40 text-rose-400 hover:text-rose-300"
+                        title="Delete Memory"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -348,7 +620,7 @@ export const PrivateVault: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setShowLetterModal(true)}
+              onClick={openCreateLetter}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold rounded-lg tracking-wider uppercase cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -370,6 +642,23 @@ export const PrivateVault: React.FC = () => {
                     </span>
                     <h3 className="font-serif text-2xl text-white font-medium mt-1">{letter.title}</h3>
                     <span className="text-xs text-[#7A615D]">{letter.date}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditLetter(letter)}
+                      className="p-2 rounded hover:bg-[#2D1619] text-[#B2948E] hover:text-white"
+                      title="Edit Letter"
+                    >
+                      <Edit2 className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteLetter(letter._id)}
+                      className="p-2 rounded hover:bg-rose-950/40 text-rose-400 hover:text-rose-300"
+                      title="Delete Letter"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
                   </div>
                 </div>
 
@@ -393,7 +682,7 @@ export const PrivateVault: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setShowNoteModal(true)}
+              onClick={openCreateNote}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold rounded-lg tracking-wider uppercase cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -412,15 +701,22 @@ export const PrivateVault: React.FC = () => {
                     <span className="text-[10px] text-[#E11D48] font-bold uppercase tracking-wider">
                       {note.category}
                     </span>
-                    <button
-                      onClick={async () => {
-                        await vaultApi.deleteNote(note._id);
-                        setNotes(notes.filter(n => n._id !== note._id));
-                      }}
-                      className="text-[#7A5A55] hover:text-red-400 p-1"
-                    >
-                      <Trash2 className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={() => openEditNote(note)}
+                        className="text-[#9E827D] hover:text-white p-1"
+                        title="Edit Note"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteNote(note._id)}
+                        className="text-[#7A5A55] hover:text-red-400 p-1"
+                        title="Delete Note"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <h3 className="font-serif text-lg text-white font-medium">{note.title}</h3>
@@ -453,7 +749,7 @@ export const PrivateVault: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setShowSurpriseModal(true)}
+              onClick={openCreateSurprise}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold rounded-lg tracking-wider uppercase cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -472,9 +768,25 @@ export const PrivateVault: React.FC = () => {
                     <span className="text-[10px] font-bold uppercase tracking-wider text-[#E11D48]">
                       Status: {surprise.status}
                     </span>
-                    {surprise.budget && (
-                      <span className="text-xs text-[#A89387]">Budget: {surprise.budget}</span>
-                    )}
+                    <div className="flex items-center gap-2">
+                      {surprise.budget && (
+                        <span className="text-xs text-[#A89387]">Budget: {surprise.budget}</span>
+                      )}
+                      <button
+                        onClick={() => openEditSurprise(surprise)}
+                        className="p-1 rounded text-[#9E827D] hover:text-white"
+                        title="Edit Surprise"
+                      >
+                        <Edit2 className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteSurprise(surprise._id)}
+                        className="p-1 rounded text-[#7A5A55] hover:text-red-400"
+                        title="Delete Surprise"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
                   </div>
 
                   <h3 className="font-serif text-2xl text-white font-medium">{surprise.title}</h3>
@@ -486,7 +798,7 @@ export const PrivateVault: React.FC = () => {
                   {surprise.checklist && surprise.checklist.length > 0 && (
                     <div className="mt-4 pt-3 border-t border-[#261416]">
                       <span className="text-[10px] font-semibold text-[#8A6D68] uppercase tracking-wider mb-2 block">
-                        Action Checklist
+                        Action Checklist (Click to Toggle)
                       </span>
                       <div className="space-y-1.5">
                         {surprise.checklist.map(item => (
@@ -538,7 +850,7 @@ export const PrivateVault: React.FC = () => {
               </p>
             </div>
             <button
-              onClick={() => setShowJournalModal(true)}
+              onClick={openCreateJournal}
               className="flex items-center gap-1.5 px-4 py-2 bg-[#E11D48] hover:bg-[#BE123C] text-white text-xs font-semibold rounded-lg tracking-wider uppercase cursor-pointer"
             >
               <Plus className="w-4 h-4" />
@@ -561,6 +873,23 @@ export const PrivateVault: React.FC = () => {
                     </div>
                     <h3 className="font-serif text-2xl text-white font-medium mt-1">{entry.title}</h3>
                   </div>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => openEditJournal(entry)}
+                      className="p-1.5 rounded text-[#9E827D] hover:text-white"
+                      title="Edit Entry"
+                    >
+                      <Edit2 className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteJournal(entry._id)}
+                      className="p-1.5 rounded text-[#7A5A55] hover:text-red-400"
+                      title="Delete Entry"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
 
                 <p className="font-serif text-base sm:text-lg text-[#D6C5BC] leading-relaxed whitespace-pre-line">
@@ -572,13 +901,36 @@ export const PrivateVault: React.FC = () => {
         </div>
       )}
 
-      {/* Modals for creating vault items */}
-      {/* 1. Note Modal */}
+      {/* ----------------- MODALS ----------------- */}
+
+      {/* 1. Photo Modal (Create & Edit) */}
+      <PhotoUploaderModal
+        isOpen={showPhotoModal}
+        onClose={() => {
+          setShowPhotoModal(false);
+          setEditingMemory(null);
+        }}
+        defaultPrivate={true}
+        initialData={editingMemory}
+        onSuccess={(savedImg) => {
+          if (editingMemory) {
+            setMemories(memories.map(m => m._id === savedImg._id ? savedImg : m));
+            triggerNotify('Memory updated.');
+          } else {
+            setMemories([savedImg, ...memories]);
+            triggerNotify('Secret memory saved to vault.');
+          }
+        }}
+      />
+
+      {/* 2. Note Modal (Create & Edit) */}
       {showNoteModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-[#170E10] border border-[#3C1D22] rounded-xl p-6 max-w-md w-full">
-            <h3 className="font-serif text-xl text-white mb-4">Add Private Note</h3>
-            <form onSubmit={handleCreateNote} className="space-y-4 text-xs">
+            <h3 className="font-serif text-xl text-white mb-4">
+              {editingNote ? 'Edit Private Note' : 'Add Private Note'}
+            </h3>
+            <form onSubmit={handleSaveNote} className="space-y-4 text-xs">
               <input
                 type="text"
                 required
@@ -621,7 +973,7 @@ export const PrivateVault: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded bg-[#E11D48] text-white font-medium"
                 >
-                  Save Note
+                  {editingNote ? 'Update Note' : 'Save Note'}
                 </button>
               </div>
             </form>
@@ -629,12 +981,14 @@ export const PrivateVault: React.FC = () => {
         </div>
       )}
 
-      {/* 2. Letter Modal */}
+      {/* 3. Letter Modal (Create & Edit) */}
       {showLetterModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-[#170E10] border border-[#3C1D22] rounded-xl p-6 max-w-lg w-full">
-            <h3 className="font-serif text-xl text-white mb-4">Write Secret Letter</h3>
-            <form onSubmit={handleCreateLetter} className="space-y-4 text-xs">
+            <h3 className="font-serif text-xl text-white mb-4">
+              {editingLetter ? 'Edit Secret Letter' : 'Write Secret Letter'}
+            </h3>
+            <form onSubmit={handleSaveLetter} className="space-y-4 text-xs">
               <input
                 type="text"
                 required
@@ -653,9 +1007,10 @@ export const PrivateVault: React.FC = () => {
               />
               <div className="grid grid-cols-2 gap-2">
                 <input
-                  type="date"
+                  type="text"
                   value={letterDate}
                   onChange={(e) => setLetterDate(e.target.value)}
+                  placeholder="Date / Occasion"
                   className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
                 />
                 <input
@@ -678,7 +1033,7 @@ export const PrivateVault: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded bg-[#E11D48] text-white font-medium"
                 >
-                  Save Secret Letter
+                  {editingLetter ? 'Update Secret Letter' : 'Save Secret Letter'}
                 </button>
               </div>
             </form>
@@ -686,12 +1041,14 @@ export const PrivateVault: React.FC = () => {
         </div>
       )}
 
-      {/* 3. Journal Modal */}
+      {/* 4. Journal Modal (Create & Edit) */}
       {showJournalModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
           <div className="bg-[#170E10] border border-[#3C1D22] rounded-xl p-6 max-w-lg w-full">
-            <h3 className="font-serif text-xl text-white mb-4">New Private Journal Entry</h3>
-            <form onSubmit={handleCreateJournal} className="space-y-4 text-xs">
+            <h3 className="font-serif text-xl text-white mb-4">
+              {editingJournal ? 'Edit Journal Entry' : 'New Private Journal Entry'}
+            </h3>
+            <form onSubmit={handleSaveJournal} className="space-y-4 text-xs">
               <input
                 type="text"
                 required
@@ -735,7 +1092,7 @@ export const PrivateVault: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded bg-[#E11D48] text-white font-medium"
                 >
-                  Save Entry
+                  {editingJournal ? 'Update Entry' : 'Save Entry'}
                 </button>
               </div>
             </form>
@@ -743,12 +1100,14 @@ export const PrivateVault: React.FC = () => {
         </div>
       )}
 
-      {/* 4. Surprise Modal */}
+      {/* 5. Surprise Modal (Create & Edit) */}
       {showSurpriseModal && (
         <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center p-4">
-          <div className="bg-[#170E10] border border-[#3C1D22] rounded-xl p-6 max-w-md w-full">
-            <h3 className="font-serif text-xl text-white mb-4">Plan Secret Surprise</h3>
-            <form onSubmit={handleCreateSurprise} className="space-y-4 text-xs">
+          <div className="bg-[#170E10] border border-[#3C1D22] rounded-xl p-6 max-w-md w-full max-h-[90vh] overflow-y-auto">
+            <h3 className="font-serif text-xl text-white mb-4">
+              {editingSurprise ? 'Edit Surprise Plan' : 'Plan Secret Surprise'}
+            </h3>
+            <form onSubmit={handleSaveSurprise} className="space-y-4 text-xs">
               <input
                 type="text"
                 required
@@ -781,16 +1140,31 @@ export const PrivateVault: React.FC = () => {
                   className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
                 />
               </div>
-              <select
-                value={surpriseStatus}
-                onChange={(e) => setSurpriseStatus(e.target.value as any)}
-                className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
-              >
-                <option value="Idea">Idea</option>
-                <option value="Planning">Planning</option>
-                <option value="Ready">Ready</option>
-                <option value="Completed">Completed</option>
-              </select>
+              <div>
+                <label className="block text-[#A89387] mb-1">Status</label>
+                <select
+                  value={surpriseStatus}
+                  onChange={(e) => setSurpriseStatus(e.target.value as any)}
+                  className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
+                >
+                  <option value="Idea">Idea</option>
+                  <option value="Planning">Planning</option>
+                  <option value="Ready">Ready</option>
+                  <option value="Completed">Completed</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[#A89387] mb-1">Checklist Items (one per line)</label>
+                <textarea
+                  rows={3}
+                  value={surpriseChecklistText}
+                  onChange={(e) => setSurpriseChecklistText(e.target.value)}
+                  placeholder="Order flowers&#10;Book rooftop table&#10;Prepare music"
+                  className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
+                />
+              </div>
+
               <textarea
                 rows={2}
                 value={surpriseNotes}
@@ -798,6 +1172,7 @@ export const PrivateVault: React.FC = () => {
                 placeholder="Secret notes / instructions..."
                 className="w-full p-2.5 bg-[#0D0708] border border-[#33181B] rounded text-white"
               />
+
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
@@ -810,7 +1185,7 @@ export const PrivateVault: React.FC = () => {
                   type="submit"
                   className="px-5 py-2 rounded bg-[#E11D48] text-white font-medium"
                 >
-                  Save Plan
+                  {editingSurprise ? 'Update Plan' : 'Save Plan'}
                 </button>
               </div>
             </form>

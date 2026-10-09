@@ -46,27 +46,27 @@ export const HomePage: React.FC<HomePageProps> = ({
             <span>Featured Memory</span>
           </div>
           <h2 className="font-serif text-3xl sm:text-4xl text-[#3D251E] font-medium tracking-tight">
-            The Moment Time Stood Still
+            {settings.featuredMemoryTitle || 'The Moment Time Stood Still'}
           </h2>
         </div>
 
         <div className="bg-[#FFFDF9] rounded-2xl p-6 sm:p-10 paper-shadow border border-[#EBE0D5] grid grid-cols-1 md:grid-cols-12 gap-8 items-center">
           <div className="md:col-span-7 aspect-4/3 rounded-xl overflow-hidden bg-[#F5ECE3] shadow-xs">
             <ImageWithFallback
-              src="WhatsApp Image 2026-10-08 at 4.25.31 PM (3).jpeg"
-              alt="Cheek Kiss & Sweet Smiles"
-              title="Quiet Whispers"
-              subtitle="Closed eyes, infinite joy"
+              src={settings.featuredMemoryImage || 'WhatsApp Image 2026-10-08 at 4.25.31 PM (3).jpeg'}
+              alt={settings.featuredMemoryTitle || 'Cheek Kiss & Sweet Smiles'}
+              title={settings.featuredMemoryTitle || 'Quiet Whispers'}
+              subtitle={settings.featuredMemorySubtitle || 'Closed eyes, infinite joy'}
               className="w-full h-full"
             />
           </div>
 
           <div className="md:col-span-5 flex flex-col justify-center">
             <span className="font-handwriting text-2xl text-[#A84B3D]">
-              “Just us, nothing else.”
+              {settings.featuredMemorySubtitle || '“Just us, nothing else.”'}
             </span>
             <p className="mt-4 font-serif text-lg text-[#4A352D] leading-relaxed">
-              Whenever we take these quick selfies, it reminds me that the best parts of life are not the loud stages—they are the quiet seconds where you lean in and just smile.
+              {settings.featuredMemoryText || 'Whenever we take these quick selfies, it reminds me that the best parts of life are not the loud stages—they are the quiet seconds where you lean in and just smile.'}
             </p>
             <div className="mt-6 pt-6 border-t border-[#F0E6DD] flex items-center justify-between text-xs text-[#8F7266]">
               <span>Captured with love</span>

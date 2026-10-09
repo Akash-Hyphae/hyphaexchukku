@@ -2,7 +2,8 @@ import React from 'react';
 import { PersonalCardItem, SiteSettings } from '../types/index.ts';
 import { PersonalCard } from '../components/PersonalCard.tsx';
 import { ImageWithFallback } from '../components/ImageWithFallback.tsx';
-import { Heart, Sparkles } from 'lucide-react';
+import { Heart, Sparkles, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface ChukkuPageProps {
   cards: PersonalCardItem[];
@@ -10,6 +11,7 @@ interface ChukkuPageProps {
 }
 
 export const ChukkuPage: React.FC<ChukkuPageProps> = ({ cards, settings }) => {
+  const { isAuthenticated } = useAuth();
   const loveCards = cards.filter(c => c.category === 'Things I Love About You');
   const littleThingsCards = cards.filter(c => c.category !== 'Things I Love About You');
 
@@ -27,13 +29,28 @@ export const ChukkuPage: React.FC<ChukkuPageProps> = ({ cards, settings }) => {
         <p className="mt-4 font-serif text-xl sm:text-2xl text-[#6B5349] italic">
           “{settings.chukkuIntro}”
         </p>
+
+        {isAuthenticated && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => {
+                sessionStorage.setItem('admin_target_tab', 'chukku');
+                window.location.href = '/admin';
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#A84B3D] hover:bg-[#8F3C30] text-white text-xs font-semibold tracking-wider uppercase shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add / Manage Chukku Cards in Admin</span>
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Large Featured Photograph */}
       <div className="max-w-3xl mx-auto mb-20 bg-[#FFFDF9] p-5 sm:p-7 rounded-2xl paper-shadow border border-[#EBE0D5]">
         <div className="aspect-16/10 rounded-xl overflow-hidden bg-[#F5ECE3]">
           <ImageWithFallback
-            src="WhatsApp Image 2026-10-08 at 4.25.23 PM (1).jpeg"
+            src={settings.chukkuFeaturedImage || 'WhatsApp Image 2026-10-08 at 4.25.23 PM (1).jpeg'}
             alt="Chukku's Special Day"
             title="Chukku · In Her Radiance"
             subtitle="My day ❤️"
@@ -42,7 +59,7 @@ export const ChukkuPage: React.FC<ChukkuPageProps> = ({ cards, settings }) => {
         </div>
         <div className="mt-4 text-center">
           <p className="font-handwriting text-2xl text-[#523A31]">
-            “The girl who turns ordinary days into poetry.”
+            “{settings.chukkuFeaturedQuote || 'The girl who turns ordinary days into poetry.'}”
           </p>
         </div>
       </div>

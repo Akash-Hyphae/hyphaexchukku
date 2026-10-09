@@ -1,12 +1,15 @@
 import React from 'react';
 import { FutureGoalItem } from '../types/index.ts';
-import { Compass, Sunrise, Sparkles, MapPin, CheckCircle2, Circle } from 'lucide-react';
+import { Compass, Sunrise, Sparkles, MapPin, CheckCircle2, Circle, Plus } from 'lucide-react';
+import { useAuth } from '../context/AuthContext.tsx';
 
 interface FutureSectionProps {
   goals: FutureGoalItem[];
 }
 
 export const FutureSection: React.FC<FutureSectionProps> = ({ goals }) => {
+  const { isAuthenticated } = useAuth();
+
   const getCategoryIcon = (category: string) => {
     switch (category) {
       case 'Sunrise':
@@ -29,6 +32,21 @@ export const FutureSection: React.FC<FutureSectionProps> = ({ goals }) => {
         <p className="mt-2 text-sm sm:text-base text-[#7D5A4F] font-sans">
           A bucket list for our tomorrows, one dream at a time.
         </p>
+
+        {isAuthenticated && (
+          <div className="mt-6 flex justify-center">
+            <button
+              onClick={() => {
+                sessionStorage.setItem('admin_target_tab', 'future');
+                window.location.href = '/admin';
+              }}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-[#A84B3D] hover:bg-[#8F3C30] text-white text-xs font-semibold tracking-wider uppercase shadow-xs transition-colors cursor-pointer"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Add / Manage Bucket List in Admin</span>
+            </button>
+          </div>
+        )}
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">

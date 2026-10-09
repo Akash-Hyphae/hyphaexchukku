@@ -12,6 +12,7 @@ import {
 } from '../types/index.ts';
 
 const TOKEN_KEY = 'chukku_hyphae_admin_token';
+const API_BASE_URL = import.meta.env.VITE_API_URL || '';
 
 export function getAuthToken(): string | null {
   return localStorage.getItem(TOKEN_KEY);
@@ -23,6 +24,16 @@ export function setAuthToken(token: string): void {
 
 export function clearAuthToken(): void {
   localStorage.removeItem(TOKEN_KEY);
+}
+
+// URL resolver helper
+export function resolveApiUrl(endpoint: string): string {
+  if (endpoint.startsWith('http://') || endpoint.startsWith('https://')) {
+    return endpoint;
+  }
+  const base = API_BASE_URL.replace(/\/+$/, '');
+  const path = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  return base ? `${base}${path}` : path;
 }
 
 // Request helper
@@ -38,7 +49,8 @@ async function request<T>(endpoint: string, options: RequestInit = {}): Promise<
     headers.set('Authorization', `Bearer ${token}`);
   }
 
-  const response = await fetch(endpoint, {
+  const url = resolveApiUrl(endpoint);
+  const response = await fetch(url, {
     ...options,
     headers
   });
@@ -234,6 +246,17 @@ export const vaultApi = {
     request<{ success: boolean; data: LoveLetterItem }>('/api/admin/private/letters', {
       method: 'POST',
       body: JSON.stringify(letter)
+    }),
+
+  updateLetter: (id: string, letter: Partial<LoveLetterItem>) =>
+    request<{ success: boolean; data: LoveLetterItem }>(`/api/admin/private/letters/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(letter)
+    }),
+
+  deleteLetter: (id: string) =>
+    request<{ success: boolean; message: string }>(`/api/admin/private/letters/${id}`, {
+      method: 'DELETE'
     }),
 
   getNotes: () =>

@@ -5,6 +5,8 @@ import {
   updateMemoryPrivacy,
   getPrivateLetters,
   createPrivateLetter,
+  updatePrivateLetter,
+  deletePrivateLetter,
   getPrivateNotes,
   createPrivateNote,
   updatePrivateNote,
@@ -31,6 +33,8 @@ router.put('/memories/:id/privacy', updateMemoryPrivacy);
 // 2. Private Letters
 router.get('/letters', getPrivateLetters);
 router.post('/letters', createPrivateLetter);
+router.put('/letters/:id', updatePrivateLetter);
+router.delete('/letters/:id', deletePrivateLetter);
 
 // 3. Private Notes
 router.get('/notes', getPrivateNotes);

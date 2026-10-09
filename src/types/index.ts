@@ -116,8 +116,17 @@ export interface SiteSettings {
   heroSubtitle: string;
   heroButtonText: string;
   featuredImageUrl: string;
+  featuredMemoryTitle?: string;
+  featuredMemorySubtitle?: string;
+  featuredMemoryText?: string;
+  featuredMemoryImage?: string;
   chukkuIntro: string;
+  chukkuFeaturedImage?: string;
+  chukkuFeaturedQuote?: string;
   hyphaeIntro: string;
+  hyphaeFeaturedImage?: string;
+  hyphaeFeaturedQuote?: string;
+  hyphaePersonalNote?: string;
   finalSurpriseTitle: string;
   finalSurpriseMessage: string;
   finalSurpriseImage: string;

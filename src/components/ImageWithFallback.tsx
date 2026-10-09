@@ -28,11 +28,13 @@ export const ImageWithFallback: React.FC<ImageWithFallbackProps> = ({
     if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
       return url;
     }
-    if (url.startsWith('/uploads/') || url.startsWith('/photos/')) {
-      return url;
+    const apiUrl = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
+    let path = url;
+    if (!url.startsWith('/uploads/') && !url.startsWith('/photos/')) {
+      // Check if filename
+      path = `/photos/${encodeURIComponent(url)}`;
     }
-    // Check if filename
-    return `/photos/${encodeURIComponent(url)}`;
+    return apiUrl ? `${apiUrl}${path.startsWith('/') ? path : `/${path}`}` : path;
   };
 
   const currentSrc = resolveSrc(src);

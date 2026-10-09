@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { adminApi } from '../services/api.ts';
 import { X, Upload, Image as ImageIcon, Sparkles, Check } from 'lucide-react';
 import { GalleryImage } from '../types/index.ts';
@@ -6,8 +6,9 @@ import { GalleryImage } from '../types/index.ts';
 interface PhotoUploaderModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: (newImage: GalleryImage) => void;
+  onSuccess: (savedImage: GalleryImage) => void;
   defaultPrivate?: boolean;
+  initialData?: GalleryImage | null;
 }
 
 const CATEGORIES = ['All', 'Us', 'Favorites', 'Adventures', 'Random Moments', 'Special Days'];
@@ -32,7 +33,8 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  defaultPrivate = false
+  defaultPrivate = false,
+  initialData = null
 }) => {
   const [selectedPreset, setSelectedPreset] = useState(PRESET_PHOTOS[0].filename);
   const [useUploadFile, setUseUploadFile] = useState(false);
@@ -50,6 +52,36 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
   const [privateNote, setPrivateNote] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (initialData) {
+      setTitle(initialData.title || '');
+      setCaption(initialData.caption || '');
+      setLocation(initialData.location || '');
+      setDate(initialData.date || new Date().toISOString().split('T')[0]);
+      setCategory(initialData.category || 'Us');
+      setVisibility(
+        initialData.isPrivate ? 'private' : initialData.isPublished ? 'public' : 'draft'
+      );
+      setPrivateNote(initialData.privateNote || '');
+      setSelectedPreset(initialData.imageUrl || PRESET_PHOTOS[0].filename);
+      setUseUploadFile(false);
+      setUploadedFile(null);
+      setPreviewUrl('');
+    } else {
+      setTitle('');
+      setCaption('');
+      setLocation('');
+      setDate(new Date().toISOString().split('T')[0]);
+      setCategory('Us');
+      setVisibility(defaultPrivate ? 'private' : 'public');
+      setPrivateNote('');
+      setSelectedPreset(PRESET_PHOTOS[0].filename);
+      setUseUploadFile(false);
+      setUploadedFile(null);
+      setPreviewUrl('');
+    }
+  }, [initialData, defaultPrivate, isOpen]);
 
   if (!isOpen) return null;
 
@@ -85,24 +117,42 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
       const isPrivate = visibility === 'private';
       const isPublished = visibility === 'public';
 
-      const res = await adminApi.createGalleryImage({
-        imageUrl: finalImageUrl,
-        title,
-        caption,
-        location,
-        date,
-        category,
-        isPrivate,
-        isPublished,
-        privateNote
-      });
+      if (initialData) {
+        const res = await adminApi.updateGalleryImage(initialData._id, {
+          imageUrl: finalImageUrl,
+          title,
+          caption,
+          location,
+          date,
+          category,
+          isPrivate,
+          isPublished,
+          privateNote
+        });
+        if (res.success) {
+          onSuccess(res.data);
+          onClose();
+        }
+      } else {
+        const res = await adminApi.createGalleryImage({
+          imageUrl: finalImageUrl,
+          title,
+          caption,
+          location,
+          date,
+          category,
+          isPrivate,
+          isPublished,
+          privateNote
+        });
 
-      if (res.success) {
-        onSuccess(res.data);
-        onClose();
+        if (res.success) {
+          onSuccess(res.data);
+          onClose();
+        }
       }
     } catch (err: any) {
-      setError(err.message || 'Failed to add photo');
+      setError(err.message || 'Failed to save photo');
     } finally {
       setLoading(false);
     }
@@ -120,10 +170,12 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
 
         <div className="mb-6">
           <h2 className="font-serif text-2xl text-[#3D251E] font-medium">
-            Add Photo Memory
+            {initialData ? 'Edit Photo Memory' : defaultPrivate ? 'Add Secret Photo to Vault' : 'Add Photo Memory'}
           </h2>
           <p className="text-xs text-[#7D5A4F] font-sans mt-0.5">
-            Select one of the uploaded WhatsApp photos or upload directly from your device.
+            {initialData
+              ? 'Update caption, date, location, category, and privacy settings.'
+              : 'Select one of the uploaded WhatsApp photos or upload directly from your device.'}
           </p>
         </div>
 
@@ -324,7 +376,7 @@ export const PhotoUploaderModal: React.FC<PhotoUploaderModalProps> = ({
               disabled={loading}
               className="px-6 py-2.5 rounded-lg bg-[#A84B3D] hover:bg-[#8F3C30] text-white font-medium shadow-sm transition-colors disabled:opacity-50"
             >
-              {loading ? 'Saving...' : 'Save Photograph'}
+              {loading ? 'Saving...' : initialData ? 'Update Photograph' : 'Save Photograph'}
             </button>
           </div>
 

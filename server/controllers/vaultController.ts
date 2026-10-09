@@ -76,6 +76,39 @@ export function createPrivateLetter(req: AuthenticatedRequest, res: Response): v
   res.status(201).json({ success: true, data: newLetter });
 }
 
+export function updatePrivateLetter(req: AuthenticatedRequest, res: Response): void {
+  const { id } = req.params;
+  const store = getStore();
+  const index = store.loveLetters.findIndex(l => l._id === id);
+
+  if (index === -1) {
+    res.status(404).json({ success: false, error: 'Letter not found.' });
+    return;
+  }
+
+  const existing = store.loveLetters[index];
+  const updated: ILoveLetter = {
+    ...existing,
+    ...req.body,
+    _id: existing._id,
+    isPrivate: true,
+    isPublished: false,
+    updatedAt: new Date().toISOString()
+  };
+
+  store.loveLetters[index] = updated;
+  saveDatabase();
+  res.json({ success: true, data: updated });
+}
+
+export function deletePrivateLetter(req: AuthenticatedRequest, res: Response): void {
+  const { id } = req.params;
+  const store = getStore();
+  store.loveLetters = store.loveLetters.filter(l => l._id !== id);
+  saveDatabase();
+  res.json({ success: true, message: 'Private letter deleted.' });
+}
+
 // --- 3. PRIVATE NOTES ---
 export function getPrivateNotes(_req: AuthenticatedRequest, res: Response): void {
   const store = getStore();
